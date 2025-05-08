@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, Search, RefreshCw, AlertTriangle, UserPlus, MoreHorizontal, BookOpen, Eye } from "lucide-react"
+import { Loader2, Search, RefreshCw, AlertTriangle, UserPlus, MoreHorizontal, BookOpen, Eye, CheckCircle, XCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -32,6 +32,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface User {
   id: string
@@ -171,7 +172,7 @@ export default function UsersPage() {
         const userProgressData = progressData.progress?.find((p: any) => p.userId === user.id)
 
         if (userProgressData) {
-          const totalChapters = 10 // Assuming 10 chapters total
+          const totalChapters = 70 // Total of 70 chapters
           const completedCount = userProgressData.completedChapters?.length || 0
           const completionPercentage = Math.round((completedCount / totalChapters) * 100)
 
@@ -726,13 +727,13 @@ export default function UsersPage() {
 
       {/* User Progress Dialog */}
       <Dialog open={showUserProgressDialog} onOpenChange={setShowUserProgressDialog}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>User Progress</DialogTitle>
             <DialogDescription>{selectedUser?.name}'s course progress and achievements</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-4 overflow-y-auto px-1">
             {progressLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -748,25 +749,50 @@ export default function UsersPage() {
                   <Progress value={selectedUser?.progress?.completionPercentage || 0} className="h-2" />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <h3 className="text-sm font-medium">Completed Chapters</h3>
                   {selectedUser?.progress?.completedChapters?.length ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {selectedUser.progress.completedChapters.map((chapter: string) => (
-                        <div key={chapter} className="flex items-center">
-                          <BookOpen className="h-4 w-4 mr-2 text-green-500" />
-                          <span className="text-sm">{chapter}</span>
-                        </div>
-                      ))}
-                    </div>
+                    <ScrollArea className="h-[300px] border rounded-md p-4">
+                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {selectedUser.progress.completedChapters.map((chapter: string) => (
+                          <div key={chapter} className="flex items-center bg-green-50 dark:bg-green-950/30 p-2 rounded-md">
+                            <CheckCircle className="h-4 w-4 mr-2 text-green-500 flex-shrink-0" />
+                            <span className="text-sm truncate">{chapter}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   ) : (
                     <p className="text-sm text-muted-foreground">No chapters completed yet.</p>
                   )}
                 </div>
 
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium">Remaining Chapters</h3>
+                  {selectedUser?.progress?.completedChapters?.length !== 70 ? (
+                    <ScrollArea className="h-[200px] border rounded-md p-4">
+                      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {Array.from(
+                          { length: 70 },
+                          (_, i) => `CH-${String(i + 1).padStart(3, '0')}`
+                        )
+                          .filter(ch => !selectedUser?.progress?.completedChapters?.includes(ch))
+                          .map((chapter: string) => (
+                            <div key={chapter} className="flex items-center bg-red-50 dark:bg-red-950/30 p-2 rounded-md">
+                              <XCircle className="h-4 w-4 mr-2 text-red-500 flex-shrink-0" />
+                              <span className="text-sm truncate">{chapter}</span>
+                            </div>
+                          ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">All chapters completed!</p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <h3 className="text-sm font-medium">Achievements</h3>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="flex items-center">
                       <Badge
                         variant={selectedUser?.progress?.finalTestCompleted ? "default" : "outline"}

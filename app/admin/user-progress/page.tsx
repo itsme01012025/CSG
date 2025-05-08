@@ -397,11 +397,11 @@ export default function UserProgressPage() {
               </div>
               <ScrollArea className="h-[300px] border rounded-md p-4">
                 {completedChapters.length > 0 ? (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {completedChapters.map((chapter) => (
-                      <div key={chapter} className="flex items-center">
-                        <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                        <span>{chapter}</span>
+                      <div key={chapter} className="flex items-center bg-green-50 dark:bg-green-950/30 p-2 rounded-md">
+                        <CheckCircle className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                        <span className="text-sm truncate">{chapter}</span>
                       </div>
                     ))}
                   </div>
@@ -418,11 +418,11 @@ export default function UserProgressPage() {
               </div>
               <ScrollArea className="h-[300px] border rounded-md p-4">
                 {remainingChapters.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {remainingChapters.map((chapter) => (
-                      <div key={chapter} className="flex items-center">
-                        <XCircle className="h-4 w-4 text-red-600 mr-2" />
-                        <span>{chapter}</span>
+                      <div key={chapter} className="flex items-center bg-red-50 dark:bg-red-950/30 p-2 rounded-md">
+                        <XCircle className="h-4 w-4 text-red-600 mr-2 flex-shrink-0" />
+                        <span className="text-sm truncate">{chapter}</span>
                       </div>
                     ))}
                   </div>

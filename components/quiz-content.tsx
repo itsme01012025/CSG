@@ -38,6 +38,7 @@ export function QuizContent({ chapterId }: QuizContentProps) {
   const [submitting, setSubmitting] = useState(false); // Loading state for submitting answers
   const [error, setError] = useState<string | null>(null)
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
+  const [stateRestored, setStateRestored] = useState(false)
 
   // Format chapter ID for API endpoint (e.g., "1" -> "CH-001")
   const chapter = `CH-${chapterId.padStart(3, "0")}`
@@ -65,10 +66,22 @@ export function QuizContent({ chapterId }: QuizContentProps) {
         
         // Only restore if it's the same chapter
         if (parsedState.chapter === chapter) {
-          setQuestions(parsedState.questions)
-          setSelectedAnswers(parsedState.selectedAnswers)
-          setCurrentQuestionIndex(parsedState.currentQuestionIndex)
-          return true // Successfully restored state
+          // Check if the saved state is not too old (24 hours max)
+          const savedTime = parsedState.timestamp || 0
+          const currentTime = new Date().getTime()
+          const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+          
+          if (currentTime - savedTime <= maxAge) {
+            setQuestions(parsedState.questions)
+            setSelectedAnswers(parsedState.selectedAnswers)
+            setCurrentQuestionIndex(parsedState.currentQuestionIndex)
+            setStateRestored(true) // Mark that state was restored
+            return true // Successfully restored state
+          } else {
+            // State is too old, remove it
+            localStorage.removeItem(`quiz-state-${chapter}`)
+            console.log("Quiz state was too old and has been removed")
+          }
         }
       }
     } catch (err) {
@@ -92,10 +105,30 @@ export function QuizContent({ chapterId }: QuizContentProps) {
       }
     }
     
+    // Save state before page unload/refresh
     window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    // Also handle page visibility changes (tab switching, minimizing)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && !isSubmitted && questions.length > 0) {
+        saveQuizState()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Set up auto-save at regular intervals (every 30 seconds)
+    const autoSaveInterval = setInterval(() => {
+      if (!isSubmitted && questions.length > 0) {
+        saveQuizState()
+        console.log('Quiz state auto-saved')
+      }
+    }, 30000) // 30 seconds
     
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearInterval(autoSaveInterval)
     }
   }, [questions, isSubmitted])
 
@@ -356,6 +389,17 @@ export function QuizContent({ chapterId }: QuizContentProps) {
                 <AlertDescription>{error}</AlertDescription>
              </Alert>
           )}
+          
+          {/* Display state restored notification */}
+          {stateRestored && (
+            <Alert className="mb-4 bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Your previous quiz progress has been restored. You can continue from where you left off.
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <Alert className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>

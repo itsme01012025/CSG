@@ -40,6 +40,7 @@ export function FinalTest() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [testLoading, setTestLoading] = useState(false)
+  const [stateRestored, setStateRestored] = useState(false)
   interface UserProgress {
     finalTestCompleted?: boolean;
     certificateUnlocked?: boolean;
@@ -169,10 +170,23 @@ export function FinalTest() {
       const savedState = localStorage.getItem('final-test-state')
       if (savedState) {
         const parsedState = JSON.parse(savedState)
-        setQuestions(parsedState.questions)
-        setSelectedAnswers(parsedState.selectedAnswers)
-        setCurrentQuestion(parsedState.currentQuestion)
-        return true // Successfully restored state
+        
+        // Check if the saved state is not too old (24 hours max)
+        const savedTime = parsedState.timestamp || 0
+        const currentTime = new Date().getTime()
+        const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+        
+        if (currentTime - savedTime <= maxAge) {
+          setQuestions(parsedState.questions)
+          setSelectedAnswers(parsedState.selectedAnswers)
+          setCurrentQuestion(parsedState.currentQuestion)
+          setStateRestored(true) // Mark that state was restored
+          return true // Successfully restored state
+        } else {
+          // State is too old, remove it
+          localStorage.removeItem('final-test-state')
+          console.log("Final test state was too old and has been removed")
+        }
       }
     } catch (err) {
       console.error("Failed to restore final test state:", err)
@@ -195,10 +209,30 @@ export function FinalTest() {
       }
     }
     
+    // Save state before page unload/refresh
     window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    // Also handle page visibility changes (tab switching, minimizing)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && showTestDialog && questions.length > 0 && !isSubmitted) {
+        saveTestState()
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
+    // Set up auto-save at regular intervals (every 30 seconds)
+    const autoSaveInterval = setInterval(() => {
+      if (showTestDialog && questions.length > 0 && !isSubmitted) {
+        saveTestState()
+        console.log('Final test state auto-saved')
+      }
+    }, 30000) // 30 seconds
     
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      clearInterval(autoSaveInterval)
     }
   }, [questions, isSubmitted, showTestDialog])
 
@@ -534,6 +568,16 @@ export function FinalTest() {
             </div>
           ) : questions.length > 0 ? (
             <div className="space-y-6 py-4">
+              {/* Display state restored notification */}
+              {stateRestored && (
+                <Alert className="mb-4 bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-100 dark:border-blue-800">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Your previous test progress has been restored. You can continue from where you left off.
+                  </AlertDescription>
+                </Alert>
+              )}
+              
               <div className="flex justify-between items-center">
                 <div className="text-sm font-medium">
                   Question {currentQuestion + 1} of {questions.length}

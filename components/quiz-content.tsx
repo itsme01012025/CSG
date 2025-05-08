@@ -42,11 +42,78 @@ export function QuizContent({ chapterId }: QuizContentProps) {
   // Format chapter ID for API endpoint (e.g., "1" -> "CH-001")
   const chapter = `CH-${chapterId.padStart(3, "0")}`
 
+  // Function to save quiz state to localStorage
+  const saveQuizState = () => {
+    if (questions.length > 0) {
+      const quizState = {
+        currentQuestionIndex,
+        selectedAnswers,
+        questions,
+        chapter,
+        timestamp: new Date().getTime()
+      }
+      localStorage.setItem(`quiz-state-${chapter}`, JSON.stringify(quizState))
+    }
+  }
+
+  // Function to restore quiz state from localStorage
+  const restoreQuizState = () => {
+    try {
+      const savedState = localStorage.getItem(`quiz-state-${chapter}`)
+      if (savedState) {
+        const parsedState = JSON.parse(savedState)
+        
+        // Only restore if it's the same chapter
+        if (parsedState.chapter === chapter) {
+          setQuestions(parsedState.questions)
+          setSelectedAnswers(parsedState.selectedAnswers)
+          setCurrentQuestionIndex(parsedState.currentQuestionIndex)
+          return true // Successfully restored state
+        }
+      }
+    } catch (err) {
+      console.error("Failed to restore quiz state:", err)
+    }
+    return false // Failed to restore state
+  }
+
+  // Save quiz state whenever it changes
+  useEffect(() => {
+    if (!isSubmitted && questions.length > 0) {
+      saveQuizState()
+    }
+  }, [currentQuestionIndex, selectedAnswers, questions, chapter, isSubmitted])
+  
+  // Add event listener to save state before unload (page refresh/close)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (!isSubmitted && questions.length > 0) {
+        saveQuizState()
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [questions, isSubmitted])
+
   // Fetch quiz questions from the backend API
   useEffect(() => {
     async function loadQuizData() {
       setLoading(true)
       setError(null)
+      
+      // Try to restore state first
+      const stateRestored = restoreQuizState()
+      
+      // If state was restored successfully, we don't need to fetch again
+      if (stateRestored) {
+        setLoading(false)
+        return
+      }
+      
       try {
         const response = await fetch(`/api/quiz/${chapter}`) // Fetch from GET endpoint
         if (!response.ok) {
@@ -129,6 +196,9 @@ export function QuizContent({ chapterId }: QuizContentProps) {
       // Store the analytics received from the backend
       setQuizAnalytics(result.analytics);
       setIsSubmitted(true);
+      
+      // Clear the saved quiz state since it's now completed
+      localStorage.removeItem(`quiz-state-${chapter}`);
             
       // Refresh the progress context to update the sidebar
       refreshProgress();
@@ -231,6 +301,9 @@ export function QuizContent({ chapterId }: QuizContentProps) {
               })
               setSelectedAnswers(resetAnswers)
               setError(null) // Clear previous errors
+              
+              // Clear any saved state for this quiz
+              localStorage.removeItem(`quiz-state-${chapter}`)
             }}
           >
             Retake Quiz

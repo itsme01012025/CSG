@@ -150,6 +150,58 @@ export function FinalTest() {
     checkUserProgress()
   }, [user, router])
 
+  // Function to save final test state to localStorage
+  const saveTestState = () => {
+    if (questions.length > 0 && !isSubmitted) {
+      const testState = {
+        currentQuestion,
+        selectedAnswers,
+        questions,
+        timestamp: new Date().getTime()
+      }
+      localStorage.setItem('final-test-state', JSON.stringify(testState))
+    }
+  }
+
+  // Function to restore final test state from localStorage
+  const restoreTestState = () => {
+    try {
+      const savedState = localStorage.getItem('final-test-state')
+      if (savedState) {
+        const parsedState = JSON.parse(savedState)
+        setQuestions(parsedState.questions)
+        setSelectedAnswers(parsedState.selectedAnswers)
+        setCurrentQuestion(parsedState.currentQuestion)
+        return true // Successfully restored state
+      }
+    } catch (err) {
+      console.error("Failed to restore final test state:", err)
+    }
+    return false // Failed to restore state
+  }
+
+  // Save test state whenever it changes
+  useEffect(() => {
+    if (showTestDialog && questions.length > 0 && !isSubmitted) {
+      saveTestState()
+    }
+  }, [currentQuestion, selectedAnswers, questions, showTestDialog, isSubmitted])
+  
+  // Add event listener to save state before unload (page refresh/close)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (showTestDialog && questions.length > 0 && !isSubmitted) {
+        saveTestState()
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [questions, isSubmitted, showTestDialog])
+
   const handleStartTest = async () => {
     if (!user) {
       router.push("/login")
@@ -158,6 +210,16 @@ export function FinalTest() {
 
     setShowTestDialog(true)
     setTestLoading(true)
+    
+    // Try to restore state first
+    const stateRestored = restoreTestState()
+    
+    // If state was restored successfully, we don't need to fetch again
+    if (stateRestored) {
+      setTestLoading(false)
+      return
+    }
+    
     setCurrentQuestion(0)
     setSelectedAnswers({})
     setIsSubmitted(false)
@@ -234,6 +296,9 @@ export function FinalTest() {
 
       setIsSubmitted(true)
       setShowTestDialog(false)
+      
+      // Clear the saved test state since it's now completed
+      localStorage.removeItem('final-test-state')
     } catch (err) {
       console.error("Failed to submit final test:", err)
       setError(err instanceof Error ? err.message : "Failed to submit final test. Please try again.")

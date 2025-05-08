@@ -6,11 +6,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, Search, RefreshCw, AlertTriangle, Award } from "lucide-react"
+import { Loader2, Search, RefreshCw, AlertTriangle, Award, CheckCircle, XCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface UserProgress {
   userId: string
@@ -22,6 +31,7 @@ interface UserProgress {
   certificateUnlocked?: boolean
   completionPercentage?: number
   lastUpdated?: string
+  totalChapters?: number
 }
 
 export default function UserProgressPage() {
@@ -34,6 +44,10 @@ export default function UserProgressPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [idToken, setIdToken] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<string>("all")
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<UserProgress | null>(null)
+  const [completedChapters, setCompletedChapters] = useState<string[]>([])
+  const [remainingChapters, setRemainingChapters] = useState<string[]>([])
 
   // Get authentication token
   useEffect(() => {
@@ -109,7 +123,7 @@ export default function UserProgressPage() {
       // Merge progress with user data
       const progressWithUserInfo = progressData.progress.map((progress: any) => {
         const user = users.find((u) => u.id === progress.userId)
-        const totalChapters = 10 // Assuming 10 chapters total
+        const totalChapters = 70 // Total of 70 chapters
         const completedCount = progress.completedChapters?.length || 0
         const completionPercentage = Math.round((completedCount / totalChapters) * 100)
 
@@ -118,6 +132,7 @@ export default function UserProgressPage() {
           name: progress.name || (user ? user.name : "Unknown"),
           email: progress.email || (user ? user.email : "Unknown"),
           completionPercentage,
+          totalChapters,
         }
       })
 
@@ -206,6 +221,20 @@ export default function UserProgressPage() {
       return dateString
     }
   }
+  
+  // Handle showing user details
+  const handleShowDetails = (progress: UserProgress) => {
+    const chaptersCompleted = progress.completedChapters || [];
+    const chaptersNotCompleted = Array.from(
+      { length: progress.totalChapters || 70 },
+      (_, i) => `CH-${String(i + 1).padStart(3, '0')}`
+    ).filter(ch => !chaptersCompleted.includes(ch));
+    
+    setSelectedUser(progress);
+    setCompletedChapters(chaptersCompleted);
+    setRemainingChapters(chaptersNotCompleted);
+    setShowDetailsDialog(true);
+  }
 
   if (loading) {
     return (
@@ -281,59 +310,139 @@ export default function UserProgressPage() {
               {searchTerm ? "No users found matching your search." : "No user progress data found."}
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Progress</TableHead>
-                    <TableHead>Chapters Completed</TableHead>
-                    <TableHead>Final Test</TableHead>
-                    <TableHead>Certificate</TableHead>
-                    <TableHead>Last Updated</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProgress.map((progress) => (
-                    <TableRow key={progress.userId}>
-                      <TableCell className="font-medium">{progress.name || "Unknown"}</TableCell>
-                      <TableCell>{progress.email || "Unknown"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={progress.completionPercentage || 0} className="h-2 w-24" />
-                          <span className="text-xs font-medium">{progress.completionPercentage || 0}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{progress.completedChapters?.length || 0} / 10</TableCell>
-                      <TableCell>
-                        {progress.finalTestCompleted ? (
-                          <Badge variant="default" className="bg-green-600">
-                            Completed
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">Not Completed</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {progress.certificateUnlocked ? (
-                          <Badge variant="default" className="bg-amber-600">
-                            <Award className="h-3 w-3 mr-1" />
-                            Unlocked
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">Locked</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{formatDate(progress.lastUpdated)}</TableCell>
+            <div className="rounded-md border overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Name</TableHead>
+                      <TableHead className="whitespace-nowrap">Email</TableHead>
+                      <TableHead className="whitespace-nowrap">Progress</TableHead>
+                      <TableHead className="whitespace-nowrap">Chapters</TableHead>
+                      <TableHead className="whitespace-nowrap">Final Test</TableHead>
+                      <TableHead className="whitespace-nowrap">Certificate</TableHead>
+                      <TableHead className="whitespace-nowrap">Last Updated</TableHead>
+                      <TableHead className="whitespace-nowrap">Details</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProgress.map((progress) => (
+                      <TableRow key={progress.userId}>
+                        <TableCell className="font-medium whitespace-nowrap">{progress.name || "Unknown"}</TableCell>
+                        <TableCell className="whitespace-nowrap max-w-[150px] truncate">
+                          {progress.email || "Unknown"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress.completionPercentage || 0} className="h-2 w-16 sm:w-24" />
+                            <span className="text-xs font-medium">{progress.completionPercentage || 0}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {progress.completedChapters?.length || 0} / {progress.totalChapters || 70}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {progress.finalTestCompleted ? (
+                            <Badge variant="default" className="bg-green-600">
+                              Completed
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Not Completed</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {progress.certificateUnlocked ? (
+                            <Badge variant="default" className="bg-amber-600">
+                              <Award className="h-3 w-3 mr-1" />
+                              Unlocked
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline">Locked</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">{formatDate(progress.lastUpdated)}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleShowDetails(progress)}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
       </Card>
+      {/* User Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>User Progress Details</DialogTitle>
+            <DialogDescription>
+              {selectedUser?.name || "Unknown"} ({selectedUser?.email || "Unknown"})
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4 flex-grow overflow-hidden">
+            <div className="space-y-2">
+              <div className="font-semibold flex items-center">
+                <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                Completed Chapters ({completedChapters.length})
+              </div>
+              <ScrollArea className="h-[300px] border rounded-md p-4">
+                {completedChapters.length > 0 ? (
+                  <div className="space-y-2">
+                    {completedChapters.map((chapter) => (
+                      <div key={chapter} className="flex items-center">
+                        <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                        <span>{chapter}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground text-center py-4">No chapters completed yet</div>
+                )}
+              </ScrollArea>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="font-semibold flex items-center">
+                <XCircle className="h-4 w-4 text-red-600 mr-2" />
+                Remaining Chapters ({remainingChapters.length})
+              </div>
+              <ScrollArea className="h-[300px] border rounded-md p-4">
+                {remainingChapters.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {remainingChapters.map((chapter) => (
+                      <div key={chapter} className="flex items-center">
+                        <XCircle className="h-4 w-4 text-red-600 mr-2" />
+                        <span>{chapter}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground text-center py-4">All chapters completed!</div>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <div className="w-full flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                Last updated: {selectedUser ? formatDate(selectedUser.lastUpdated) : "N/A"}
+              </div>
+              <Button onClick={() => setShowDetailsDialog(false)}>Close</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

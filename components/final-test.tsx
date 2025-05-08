@@ -53,7 +53,7 @@ export function FinalTest() {
   const [certificateUnlocked, setCertificateUnlocked] = useState(false)
   const [finalTestCompleted, setFinalTestCompleted] = useState(false)
 
-  // Check if user is allowed to take the final test
+  // Check if user is allowed to take the final test and restore state if available
   useEffect(() => {
     async function checkUserProgress() {
       if (!user) {
@@ -63,6 +63,12 @@ export function FinalTest() {
 
       setLoading(true)
       setError(null)
+      
+      // Try to restore state first - if there's a saved test in progress
+      const stateRestored = restoreTestState()
+      if (stateRestored) {
+        console.log("Restored test state on initial load")
+      }
 
       try {
         // Initialize auth header
@@ -160,7 +166,12 @@ export function FinalTest() {
         questions,
         timestamp: new Date().getTime()
       }
-      localStorage.setItem('final-test-state', JSON.stringify(testState))
+      try {
+        localStorage.setItem('final-test-state', JSON.stringify(testState))
+        console.log('Final test state saved')
+      } catch (err) {
+        console.error("Failed to save final test state:", err)
+      }
     }
   }
 
@@ -177,16 +188,23 @@ export function FinalTest() {
         const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
         
         if (currentTime - savedTime <= maxAge) {
+          console.log('Restoring final test state')
           setQuestions(parsedState.questions)
-          setSelectedAnswers(parsedState.selectedAnswers)
-          setCurrentQuestion(parsedState.currentQuestion)
+          setSelectedAnswers(parsedState.selectedAnswers || {})
+          setCurrentQuestion(parsedState.currentQuestion || 0)
           setStateRestored(true) // Mark that state was restored
+          
+          // Make sure the test dialog is shown when state is restored
+          setShowTestDialog(true)
+          
           return true // Successfully restored state
         } else {
           // State is too old, remove it
           localStorage.removeItem('final-test-state')
           console.log("Final test state was too old and has been removed")
         }
+      } else {
+        console.log("No saved final test state found")
       }
     } catch (err) {
       console.error("Failed to restore final test state:", err)

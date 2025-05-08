@@ -51,27 +51,36 @@ export function QuizContent({ chapterId }: QuizContentProps) {
         selectedAnswers,
         questions,
         chapter,
+        chapterId, // Store the original chapterId as well
         timestamp: new Date().getTime()
       }
-      localStorage.setItem(`quiz-state-${chapter}`, JSON.stringify(quizState))
+      try {
+        localStorage.setItem(`quiz-state-${chapterId}`, JSON.stringify(quizState))
+        console.log(`Quiz state saved for chapter ${chapterId}`)
+      } catch (err) {
+        console.error("Failed to save quiz state:", err)
+      }
     }
   }
 
   // Function to restore quiz state from localStorage
   const restoreQuizState = () => {
     try {
-      const savedState = localStorage.getItem(`quiz-state-${chapter}`)
+      // Try to get the state using the chapterId directly
+      const savedState = localStorage.getItem(`quiz-state-${chapterId}`)
+      
       if (savedState) {
         const parsedState = JSON.parse(savedState)
         
-        // Only restore if it's the same chapter
-        if (parsedState.chapter === chapter) {
+        // Verify it's the correct chapter (using either chapterId or formatted chapter)
+        if (parsedState.chapterId === chapterId || parsedState.chapter === chapter) {
           // Check if the saved state is not too old (24 hours max)
           const savedTime = parsedState.timestamp || 0
           const currentTime = new Date().getTime()
           const maxAge = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
           
           if (currentTime - savedTime <= maxAge) {
+            console.log(`Restoring quiz state for chapter ${chapterId}`)
             setQuestions(parsedState.questions)
             setSelectedAnswers(parsedState.selectedAnswers)
             setCurrentQuestionIndex(parsedState.currentQuestionIndex)
@@ -79,10 +88,14 @@ export function QuizContent({ chapterId }: QuizContentProps) {
             return true // Successfully restored state
           } else {
             // State is too old, remove it
-            localStorage.removeItem(`quiz-state-${chapter}`)
+            localStorage.removeItem(`quiz-state-${chapterId}`)
             console.log("Quiz state was too old and has been removed")
           }
+        } else {
+          console.log("Saved quiz state is for a different chapter")
         }
+      } else {
+        console.log(`No saved state found for chapter ${chapterId}`)
       }
     } catch (err) {
       console.error("Failed to restore quiz state:", err)
@@ -231,7 +244,7 @@ export function QuizContent({ chapterId }: QuizContentProps) {
       setIsSubmitted(true);
       
       // Clear the saved quiz state since it's now completed
-      localStorage.removeItem(`quiz-state-${chapter}`);
+      localStorage.removeItem(`quiz-state-${chapterId}`);
             
       // Refresh the progress context to update the sidebar
       refreshProgress();
@@ -336,7 +349,7 @@ export function QuizContent({ chapterId }: QuizContentProps) {
               setError(null) // Clear previous errors
               
               // Clear any saved state for this quiz
-              localStorage.removeItem(`quiz-state-${chapter}`)
+              localStorage.removeItem(`quiz-state-${chapterId}`)
             }}
           >
             Retake Quiz

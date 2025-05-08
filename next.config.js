@@ -29,12 +29,7 @@ const nextConfig = {
       'github.com',
       'lh3.googleusercontent.com'
     ],
-  },
-  // Server configuration
-  server: {
-    host: '0.0.0.0',
-    port: 12000,
-  },
+  }
 }
 
 module.exports = nextConfig
